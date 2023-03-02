@@ -235,7 +235,7 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
      real*8 weightx,weighty,weightm                                        !since kx and ky are symmetric to 0 we do not have to calculate all, but can multiply them with weights, eg 4 at the diagonale
      real*8 kx,ky                                                          !real values of kx and ky in a Brillouin zone and not the running value ikx and iky
      real*8 Pi                                                             !will store the value of pi
-     real*8 t,tPrime,tPrimePrime,checkone                                               !t is hopping parameter, checkone to check the momentum sum
+     real*8 t,c,t2,checkone                                               !t is hopping parameter, checkone to check the momentum sum
 
      complex*16 W(omoffset+1:omoffset+omnumber)                            !basically i\nu + \mu - (G_0^{-1} - G^{-1}) = i\nu + \mu - \Sigma
      complex*16 gand(omoffset+1:omoffset+omnumber)                         !anderson Greens function
@@ -301,22 +301,22 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
                 end do
             end do	
 
-            
+
 	        !Now build the TPrimeMatrix 
             TPrimeMatrix(:,:) = 0.0													!Fill the complete matrix with 0 to initialize it
             do i = 1, L									!last iterate over i and j, so over the matrix indices from 0 to (L-1), i is row, j is column
                 do j = 1, L
                     if ((i == L) .and. (j == 1)) then
-                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * tPrime*exp(-Xi*ky*L) * cos(kx * (2 * pi * B * (L - 1)))						!bottom left
+                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * t1*exp(-Xi*ky*L) * cos(kx * (2 * pi * B * (L - 1)))						!bottom left
                     END IF
                     if ((i == 1) .and. (j == L)) then
-                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * tPrime*exp(Xi*ky*L)	* cos(kx)								!top right
+                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * t1*exp(Xi*ky*L)	* cos(kx)								!top right
                     END IF
                     if (i == (j - 1)) then									
-                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * tPrime * cos(kx + (2 * pi * B * i)) 		 								!upper next to diagonale
+                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * t1 * cos(kx + (2 * pi * B * i)) 		 								!upper next to diagonale
                     END IF
                     if (i == (j + 1)) then									
-                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * tPrime * cos(kx + (2 * pi * B * j)) 		 								!lower next to diagonale
+                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * t1 * cos(kx + (2 * pi * B * j)) 		 								!lower next to diagonale
                     END IF
                 end do
             end do	
@@ -326,17 +326,17 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
             do i = 1, L									!last iterate over i and j, so over the matrix indices from 0 to (L-1), i is row, j is column
 				do j = 1, L
 					if (i == j) then
-						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j)  + 2 * tPrimePrime * cos(2* (kx + (i-1) * (2 * pi * B)))		!diagonale
+						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j)  + 2 * t2 * cos(2* (kx + (i-1) * (2 * pi * B)))		!diagonale
 					END IF
 					if (((i == L) .and. (j == 2)) .or. ((i == L - 1) .and. (j == 1))) then
-						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j) + tPrimePrime*exp(- 2*Xi*ky*L)									!bottom left
+						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j) + t2*exp(- 2*Xi*ky*L)									!bottom left
 					END IF
 					if (((i == 1) .and. (j == L - 1)) .or. ((i == 2) .and. (j == L))) then
-						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j) + tPrimePrime*exp(2*Xi*ky*L)									!top right
+						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j) + t2*exp(2*Xi*ky*L)									!top right
 					END IF
 					!(L > 2) since do not have this for L == 2, but in L = 3 have this in corner with other term
 					if (((i == (j + 2)) .or. (i == (j - 2))) .and. (L > 2)) then									
-						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j) + tPrimePrime 										!next to next to diagonale
+						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j) + t2 										!next to next to diagonale
 					END IF
 				end do
 			end do	
