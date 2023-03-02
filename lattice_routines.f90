@@ -235,7 +235,7 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
      real*8 weightx,weighty,weightm                                        !since kx and ky are symmetric to 0 we do not have to calculate all, but can multiply them with weights, eg 4 at the diagonale
      real*8 kx,ky                                                          !real values of kx and ky in a Brillouin zone and not the running value ikx and iky
      real*8 Pi                                                             !will store the value of pi
-     real*8 t,c,t2,checkone                                               !t is hopping parameter, checkone to check the momentum sum
+     real*8 t,t1,c,t2,checkone                                               !t is hopping parameter, checkone to check the momentum sum
 
      complex*16 W(omoffset+1:omoffset+omnumber)                            !basically i\nu + \mu - (G_0^{-1} - G^{-1}) = i\nu + \mu - \Sigma
      complex*16 gand(omoffset+1:omoffset+omnumber)                         !anderson Greens function
