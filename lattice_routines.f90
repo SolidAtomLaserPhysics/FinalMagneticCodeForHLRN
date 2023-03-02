@@ -235,11 +235,14 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
      real*8 weightx,weighty,weightm                                        !since kx and ky are symmetric to 0 we do not have to calculate all, but can multiply them with weights, eg 4 at the diagonale
      real*8 kx,ky                                                          !real values of kx and ky in a Brillouin zone and not the running value ikx and iky
      real*8 Pi                                                             !will store the value of pi
-     real*8 t,t1,t2,checkone                                               !t is hopping parameter, checkone to check the momentum sum
+     real*8 t,tPrime,tPrimePrime,checkone                                               !t is hopping parameter, checkone to check the momentum sum
 
      complex*16 W(omoffset+1:omoffset+omnumber)                            !basically i\nu + \mu - (G_0^{-1} - G^{-1}) = i\nu + \mu - \Sigma
      complex*16 gand(omoffset+1:omoffset+omnumber)                         !anderson Greens function
      complex*16 Gw1(omoffset+1:omoffset+omnumber)                          !G^{-1}
+     complex*16 TMatrix(1:L,1:L)                                            !the Epsilon Matrix divided into the 3 parts with t, tPrime and tPrimePrime
+     complex*16 TPrimeMatrix(1:L,1:L)
+     complex*16 TPrimePrimeMatrix(1:L,1:L)
      complex*16 epsmat(1:L,1:L)                                            !the epsilon matrix I give
      complex*16 ginv(1:L,1:L)                                              !only used to store G^{-1}
      complex*16 gk                                                         !never needed
@@ -279,31 +282,67 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
            checkone=checkone+1.0d0                                     !by this we sum over all (kx,ky) tuples which should be 2*ksteps * 2*ksteps/L = 2*ksteps * 2*kstepsY using integer division 
   
 !Construct dispersion matrix for given values of kx and ky
-           if (L.gt.2) then                                            !if epsilon matrix is bigger than a 2x2 matrix, L is bigger than 2
-              epsmat(1,1)=dcmplx(-2.0d0*t*dcos(kx),0.0d0)
-              epsmat(1,2)=dcmplx(-t,0.0d0)
-              epsmat(1,L)=dcmplx(-t*dcos(dfloat(L)*ky),0.0d0)+    &     !top right entry
-                  dcmplx(0.0d0,-t*dsin(dfloat(L)*ky))
-              epsmat(L,L)=dcmplx(-2.0d0*t*                         &    !bottom right entry
-                  dcos(kx+dfloat(L-1)*B*2.0d0*Pi),0.0d0)
-              epsmat(L,L-1)=dcmplx(-t,0.0d0)                           !bottom right but one to the left entry
-              epsmat(L,1)=dcmplx(-t*dcos(dfloat(L)*ky),0.0d0)-    &     !bottom left entry
-                  dcmplx(0.0d0,-t*dsin(dfloat(L)*ky))                 !used cos and sin instead of Euler because maybe faster
-              
-              do j=2,L-1
-                 epsmat(j,j)=dcmplx(-2.0d0*t*                    &      !diagonale entries
-                     dcos(kx+dfloat(j-1)*B*2.0d0*Pi),0.0d0)
-                 epsmat(j,j-1)=dcmplx(-t,0.0d0)                        !lower diagonale entries
-                 epsmat(j,j+1)=dcmplx(-t,0.0d0)                        !upper diagonale entries
-              enddo
-           else                                                        !if epsilon matrix is a 2x2 matrix
-              epsmat(1,1)=dcmplx(-2.0d0*t*dcos(kx),0.0d0)              !top left entry
-              epsmat(1,2)=dcmplx(-t-t*dcos(dfloat(L)*ky),0.0d0)+   &    !top right entry
-                  dcmplx(0.0d0,-t*dsin(dfloat(L)*ky))
-              epsmat(2,2)=dcmplx(-2.0d0*t*dcos(kx+B*2.0d0*Pi),0.0d0)   !bottom right entry
-              epsmat(2,1)=dcmplx(-t-t*dcos(dfloat(L)*ky),0.0d0)-   &   !bottom left entry
-                  dcmplx(0.0d0,-t*dsin(dfloat(L)*ky))
-           endif
+           TMatrix(:,:) = 0.0													!Fill the complete matrix with 0 to initialize it
+            do i = 1, L									!last iterate over i and j, so over the matrix indices from 0 to (L-1), i is row, j is column
+                do j = 1, L
+                    if (i == j) then
+                        TMatrix(i,j) = TMatrix(i,j)  + 2 * t * cos(kx + (i-1) * (2 * pi * B))		!diagonale
+                    END IF
+                    if ((i == L) .and. (j == 1)) then
+                        TMatrix(i,j) = TMatrix(i,j) + t*exp(- Xi*ky*L)									!bottom left
+                    END IF
+                    if ((i == 1) .and. (j == L)) then
+                        TMatrix(i,j) = TMatrix(i,j) + t*exp(Xi*ky*L)									!top right
+                    END IF
+                    !(L > 1) since do not have this for L == 1, but in L = 2 have this in corner with other term, else only that term
+                    if (((i == (j + 1)) .or. (i == (j - 1))) .and. (L > 1)) then									
+                        TMatrix(i,j) = TMatrix(i,j) + t 										!next to diagonale
+                    END IF
+                end do
+            end do	
+
+	        !Now build the TPrimeMatrix 
+            TPrimeMatrix(:,:) = 0.0													!Fill the complete matrix with 0 to initialize it
+            do i = 1, L									!last iterate over i and j, so over the matrix indices from 0 to (L-1), i is row, j is column
+                do j = 1, L
+                    if ((i == L) .and. (j == 1)) then
+                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * tPrime*exp(-Xi*ky*L) * cos(kx * (2 * pi * B * (L - 1)))						!bottom left
+                    END IF
+                    if ((i == 1) .and. (j == L)) then
+                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * tPrime*exp(Xi*ky*L)	* cos(kx)								!top right
+                    END IF
+                    if (i == (j - 1)) then									
+                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * tPrime * cos(kx + (2 * pi * B * i)) 		 								!upper next to diagonale
+                    END IF
+                    if (i == (j + 1)) then									
+                        TPrimeMatrix(i,j) = TPrimeMatrix(i,j) + 2 * tPrime * cos(kx + (2 * pi * B * j)) 		 								!lower next to diagonale
+                    END IF
+                end do
+            end do	
+
+	        !Now build the TPrimePrimeMatrix 
+            TPrimePrimeMatrix(:,:) = 0.0													!Fill the complete matrix with 0 to initialize it
+            do i = 1, L									!last iterate over i and j, so over the matrix indices from 0 to (L-1), i is row, j is column
+				do j = 1, L
+					if (i == j) then
+						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j)  + 2 * tPrimePrime * cos(2* (kx + (i-1) * (2 * pi * B)))		!diagonale
+					END IF
+					if (((i == L) .and. (j == 2)) .or. ((i == L - 1) .and. (j == 1))) then
+						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j) + tPrimePrime*exp(- 2*Xi*ky*L)									!bottom left
+					END IF
+					if (((i == 1) .and. (j == L - 1)) .or. ((i == 2) .and. (j == L))) then
+						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j) + tPrimePrime*exp(2*Xi*ky*L)									!top right
+					END IF
+					!(L > 2) since do not have this for L == 2, but in L = 3 have this in corner with other term
+					if (((i == (j + 2)) .or. (i == (j - 2))) .and. (L > 2)) then									
+						TPrimePrimeMatrix(i,j) = TPrimePrimeMatrix(i,j) + tPrimePrime 										!next to next to diagonale
+					END IF
+				end do
+			end do	
+
+            epsmat = TMatrix + TPrimeMatrix + TPrimePrimeMatrix
+  
+
 
            do i=omoffset+1,omoffset+omnumber         
               do j=1,L
