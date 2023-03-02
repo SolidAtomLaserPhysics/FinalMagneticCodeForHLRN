@@ -767,6 +767,7 @@ program lisalanc
             endif
                call selfconst2_magnetic(omnumber,omoffset,Iwmax,ksteps,L, &
                                   beta,xmu,BField,om,Energya2D,dcmplx(0,1.d0),g0wand,Gw,G0wpartMat)
+                                  
                               
          else
              error stop          

@@ -301,6 +301,7 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
                 end do
             end do	
 
+            
 	        !Now build the TPrimeMatrix 
             TPrimeMatrix(:,:) = 0.0													!Fill the complete matrix with 0 to initialize it
             do i = 1, L									!last iterate over i and j, so over the matrix indices from 0 to (L-1), i is row, j is column
