@@ -216,6 +216,7 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
      integer omnumber,omoffset                                             !omnumber is the number of all omegas, omoffset normally -omnumber/2
      integer Iwmax                                                         !maximum value of omega frequency
      integer ksteps                                                        !twice many steps in the kGrid, e.g. ksteps = 2 gives kx = -pi/2, 0, pi/2, pi
+     integer kstepsX                                                       !different stepsize in x and y direction
      integer kstepsY                                                       !since Brillouin in y direction smaller but same finesse, have less ksteps
      integer myblock
      integer L                                                             !denominator in B, in Georgs paper it is q
@@ -235,6 +236,7 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
      real*8 weightx,weighty,weightm                                        !since kx and ky are symmetric to 0 we do not have to calculate all, but can multiply them with weights, eg 4 at the diagonale
      real*8 kx,ky                                                          !real values of kx and ky in a Brillouin zone and not the running value ikx and iky
      real*8 Pi                                                             !will store the value of pi
+     real*8 dkx, dky                                                       !used for sampling
      real*8 t,t1,c,t2,checkone                                               !t is hopping parameter, checkone to check the momentum sum
 
      complex*16 W(omoffset+1:omoffset+omnumber)                            !basically i\nu + \mu - (G_0^{-1} - G^{-1}) = i\nu + \mu - \Sigma
@@ -272,14 +274,23 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
      enddo
 
      checkone=0.0d0
+     kstepsX = ksteps
+     kstepsY = ksteps/L                                                         !Maybe change this .................
+     dkx = (2 * Pi)/dfloat(kstepsX)
+     dky = (2 * Pi)/dfloat(kstepsY * L)                                 !Make sure to have float division 
 
-     kstepsY=ksteps/L
+     do ikx = 1, kstepsX                                                !get kx from the running variable ikx
+        kx = -Pi + dfloat(ikx - 1) * dkx
+        do iky = 1, kstepsY
+            ky = -Pi/dfloat(L) + dfloat(iky - 1) * dky
+            checkone=checkone+1.0d0                                     !by this we sum over all (kx,ky) tuples which should be ksteps * ksteps/L using integer division 
      
-     do ikx=-ksteps+1,ksteps
-        kx=Pi*dfloat(ikx)/dfloat(ksteps)                               !get kx from the running variable ikx
-        do iky=-kstepsY+1,kstepsY                                      !it is totally fine to have less points in y direction since the finesse should stay the same and ky is shorter in generell
-           ky=Pi*dfloat(iky)/dfloat(ksteps)                            !therefore do not need changes here, since it is the same besides less k points
-           checkone=checkone+1.0d0                                     !by this we sum over all (kx,ky) tuples which should be 2*ksteps * 2*ksteps/L = 2*ksteps * 2*kstepsY using integer division 
+     !OLD SAMPLING
+     !do ikx=-ksteps+1,ksteps
+     !   kx=Pi*dfloat(ikx)/dfloat(ksteps)                               !get kx from the running variable ikx
+     !   do iky=-kstepsY+1,kstepsY                                      !it is totally fine to have less points in y direction since the finesse should stay the same and ky is shorter in generell
+     !      ky=Pi*dfloat(iky)/dfloat(ksteps)                            !therefore do not need changes here, since it is the same besides less k points
+     !      checkone=checkone+1.0d0                                     !by this we sum over all (kx,ky) tuples which should be 2*ksteps * 2*ksteps/L = 2*ksteps * 2*kstepsY using integer division 
   
 !Construct dispersion matrix for given values of kx and ky
            TMatrix(:,:) = 0.0													!Fill the complete matrix with 0 to initialize it
@@ -367,8 +378,8 @@ subroutine selfconst3(omnumber,omoffset,Iwmax,ksteps, &
         enddo
      enddo 
 
-     !checkone=checkone*dfloat(L)/(4.0d0*dfloat(ksteps**2))
-     checkone=checkone/((2.0d0*dfloat(ksteps))*(2.0d0*dfloat(kstepsY)))                     !if this is not 1.0 or 10^(-15) or so away, then the normalization is wrong
+
+     checkone=checkone/((dfloat(kstepsX))*(dfloat(kstepsY)))                     !if this is not 1.0 or 10^(-15) or so away, then the normalization is wrong
      if (omoffset.le.2) then
         write(6,*)"Check momentum sum: ",checkone                                           !should be exactly 1
      endif
